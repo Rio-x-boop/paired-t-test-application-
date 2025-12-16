@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paired T-Test System</title>
+
+<style>
+:root {
+  --bg: #f4f6fb;
+  --card: #ffffff;
+  --text: #222;
+  --accent: #007bff;
+  --success: #28a745;
+  --danger: #dc3545;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 15px;
+}
+
+.container {
+  max-width: 900px;
+  margin: auto;
+  background: var(--card);
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,.1);
+}
+
+h1, h2, h3 {
+  text-align: center;
+  color: var(--accent);
+}
+
+button {
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.primary { background: var(--success); color: white; }
+.secondary { background: var(--accent); color: white; }
+.danger { background: var(--danger); color: white; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: center;
+}
+
+input[type="number"] {
+  width: 95%;
+  padding: 6px;
+}
+
+.hypothesis-box {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-bottom: 15px;
+}
+
+.hypothesis-box label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: normal;
+}
+
+.result-box {
+  background: #eef5ff;
+  padding: 15px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  font-family: monospace;
+}
+
+.final {
+  font-size: 18px;
+  font-weight: bold;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.reject { background: #f8d7da; color: #721c24; }
+.accept { background: #d4edda; color: #155724; }
+
+@media (max-width: 600px) {
+  h1 { font-size: 22px; }
+  button { font-size: 14px; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Paired T-Test Calculator</h1>
+
+<h3>Hypothesis</h3>
+<div class="hypothesis-box">
+  <label>
+    <input type="radio" name="hypo" value="two" checked>
+    Two-Tailed (Hₐ: μ₁ ≠ μ₂)
+  </label>
+
+  <label>
+    <input type="radio" name="hypo" value="one">
+    One-Tailed
+  </label>
+</div>
+
+<h3>Input Data</h3>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th>Before</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody id="rows"></tbody>
+</table>
+
+<br>
+<button class="secondary" onclick="addRow()">➕ Add Row</button>
+<button class="danger" onclick="removeRow()">➖ Remove Row</button>
+
+<br><br>
+<button class="primary" onclick="calculate()">📊 Calculate</button>
+
+<h2>Step-by-Step Solution</h2>
+<div id="output" class="result-box"></div>
+
+</div>
+
+<script>
+let count = 0;
+
+function addRow(){
+  count++;
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${count}</td>
+    <td><input type="number"></td>
+    <td><input type="number"></td>`;
+  document.getElementById("rows").appendChild(tr);
+}
+
+function removeRow(){
+  if(count>2){
+    document.getElementById("rows").lastChild.remove();
+    count--;
+  }
+}
+
+for(let i=0;i<5;i++) addRow();
+
+function tCritical(df){
+  const table = {
+    1:12.706,2:4.303,3:3.182,4:2.776,5:2.571,
+    6:2.447,7:2.365,8:2.306,9:2.262,10:2.228,
+    15:2.131,20:2.086,30:2.042
+  };
+  if(df>=30) return 1.96;
+  return table[df] || table[10];
+}
+
+function calculate(){
+  const trs = document.querySelectorAll("#rows tr");
+  let d=[];
+  trs.forEach(r=>{
+    const a=r.children[1].firstChild.value;
+    const b=r.children[2].firstChild.value;
+    if(a!=="" && b!=="") d.push(a-b);
+  });
+
+  if(d.length<2){
+    alert("Enter at least 2 complete pairs.");
+    return;
+  }
+
+  const n=d.length;
+  const df=n-1;
+  const mean=d.reduce((s,v)=>s+v,0)/n;
+  const sd=Math.sqrt(d.reduce((s,v)=>s+(v-mean)**2,0)/df);
+  const t=mean/(sd/Math.sqrt(n));
+  const crit=tCritical(df);
+
+  const decision=Math.abs(t)>crit?"REJECT":"ACCEPT";
+
+  let text=
+`1️⃣ Hypotheses
+H₀: μ₁ = μ₂
+Hₐ: μ₁ ≠ μ₂
+
+2️⃣ Sample Size
+n = ${n}
+df = ${df}
+
+3️⃣ Mean Difference
+x̄d = ${mean.toFixed(4)}
+
+4️⃣ Standard Deviation
+sd = ${sd.toFixed(4)}
+
+5️⃣ Test Statistic
+t-computed = ${t.toFixed(4)}
+
+6️⃣ Critical Value
+t-critical = ±${crit}
+
+7️⃣ Decision
+|t| ${Math.abs(t)>crit?">":"<"} t-critical
+
+Conclusion:
+${decision} the null hypothesis.
+`;
+
+  document.getElementById("output").innerText=text;
+  document.getElementById("output").innerHTML+=
+  `<div class="final ${decision==="REJECT"?"reject":"accept"}">
+   ${decision} NULL HYPOTHESIS
+   </div>`;
+}
+</script>
+
+</body>
+</html>
